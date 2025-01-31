@@ -1,4 +1,4 @@
-# Phidata-Video-Audio-AI-Summarizer
+# Multimodal-Video-Audio-AI-Summarizer
 
 ## 📖 Overview
 
