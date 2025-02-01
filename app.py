@@ -30,6 +30,7 @@ def initialize_agent():
     return Agent(
         name="Video/Audio AI Summarizer",
         model=Gemini(id="gemini-2.0-flash-exp"),
+        tools = [DuckDuckGo()],
         markdown=True,
     )
 
@@ -69,39 +70,47 @@ if video_file or audio_file:
             try:
                 with st.spinner("Processing media and gathering insights..."):
                     # Check if an audio or video file is uploaded
+                    video = []
                     if video_path:
-                        media_path = video_path
-                        media_type = "video"
-                    elif audio_path:
-                        media_path = audio_path
-                        media_type = "audio"
-                    else:
+                        video_media_path = video_path
+                        video_media_type = "video"
+                        video_processed_media = genai.upload_file(video_media_path)
+                        while video_processed_media.state.name == "PROCESSING":
+                            video_processed_media = get_file(video_processed_media.name)
+                        video = [video_processed_media]
+                    
+                    audio = []
+                    if audio_path:
+                        audio_media_path = audio_path
+                        audio_media_type = "audio"
+                        audio_processed_media = genai.upload_file(audio_media_path)
+                        while audio_processed_media.state.name == "PROCESSING":
+                            audio_processed_media = get_file(audio_processed_media.name)
+                        audio = audio_processed_media if audio_path else ""
+                    
+                    if not audio_path and not video_path:
                         st.warning("Please upload an audio or video file.")
                         st.stop()
-
-                    # Process the media file    
-                    processed_media = genai.upload_file(media_path)
-                    print(processed_media)
-                    while processed_media.state.name == "PROCESSING":
-                        time.sleep(1)
-                        processed_media = get_file(processed_media.name)
-                    
-                    # Define the analysis prompt
+                        
                     analysis_prompt = (
                         f"""
+                        Analyze the video/audio content and provide insights on the following query:
                         {user_query}
+                        Based on analysis also provide some supplementary information from internet.
                         """
                     )
-                    # Run the analysis using the multimodal agent
-                    print(dir(multimodal_Agent.run()))
-                    response = multimodal_Agent.run(analysis_prompt, audio=processed_media)
+                    # print(dir(multimodal_Agent.run()))
+                    response = multimodal_Agent.run(analysis_prompt, audio = audio, videos = video)
 
                 st.subheader("Analysis Result")
                 st.markdown(response.content)
             except Exception as error:
                 st.error(f"An error occurred during analysis: {error}")
             finally:
-                Path(media_path).unlink(missing_ok=True)
+                if video_path:
+                    Path(video_path).unlink(missing_ok=True)
+                if audio_path:
+                    Path(audio_path).unlink(missing_ok=True)
     else:
         st.info("Upload an audio or video file to begin analysis.")
 
